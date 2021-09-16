@@ -87,7 +87,7 @@ p.fixation_color = black;
 p.grating_size = round(4*p.pixels_per_degree);
 
 %  Contrast
-p.grating_contrast = 0.06; % initial contrast for target gratings (michelson contrast)
+p.grating_contrast = 0.8; % initial contrast for target gratings (michelson contrast)
 
 % Orientation
 p.grating_orientation = 0;
@@ -105,7 +105,7 @@ p.grating_spatial_phase = 360;
 OriginalCLUT = Screen('ReadNormalizedGammaTable', window);
 %     load('linearizedCLUT.mat'); % testingR
 %     Screen('LoadNormalizedGammaTable', window, linearizedCLUT); %testingR
-HideCursor;
+% HideCursor;
 % Enable alpha blending
 Screen('BlendFunction', window, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -123,42 +123,60 @@ t.ifi = Screen('GetFlipInterval',window); % grab screen refresh rate
 
 % Create circular filter for textures
 [cartesian_x_coordinates,cartesian_y_coordinates] = meshgrid((-p.grating_size/2):(p.grating_size/2)-1, (-p.grating_size/2):(p.grating_size/2)-1);
-eccentricity_cartesian_coordinates = sqrt((cartesian_x_coordinates).^2+(cartesian_y_coordinates).^2); 	% calculate eccentricity of each point in grid relative to center of 2D image
+eccentricity_cartesian_coordinates = sqrt((cartesian_x_coordinates).^2+(cartesian_y_coordinates).^2); 	% calculate eccentricity of each point in grid relative to center of 2D image [x^2 + y^2 = r^2]
 
-gaussian_filter = zeros(p.grating_size); 
+gaussian_filter = zeros(p.grating_size);
 gaussian_filter(eccentricity_cartesian_coordinates <= (p.grating_size/2)) = 1;
 
 % Make grating texture grid
-[Xt,Yt] = meshgrid(0:(p.grating_size-1), 0:(p.grating_size-1));
+[Xt,Yt] = meshgrid((-p.grating_size/2):(p.grating_size/2)-1, (-p.grating_size/2):(p.grating_size/2)-1); % meshgrid(0:(p.grating_size-1), 0:(p.grating_size-1));
 grating_texture_unfiltered = (sin(p.grating_spatial_frequency*2*pi/p.grating_size*(Xt.*sin(p.grating_orientation*(pi/180))+Yt.*cos(p.grating_orientation*(pi/180)))-p.grating_spatial_phase));
 
 % Apply filter to grating texture and convert texture to rgb space
 
-for n_contrast_level = 1:numel(p.grating_contrast)
-    temp_grating_texture = (grating_texture_unfiltered .* gaussian_filter); % apply gaussian filter
-    % apply contrast level and convert texture to rgb space -Luis
-    % make drawable texture and store -Luis
-end
+temp_grating_texture = (grating_texture_unfiltered .* gaussian_filter); % apply gaussian filter
+grating_texture_filtered = (temp_grating_texture .* p.grating_contrast).*gray+gray; % apply contrast level and convert texture to rgb space -Luis
+grating_texture_made = Screen('MakeTexture', window, grating_texture_filtered); % make drawable texture and store -Luis
 
-%% Draw fixation
+%% Trial Events
+% Create vector/matrix for conditions (e.g., orientation) whose size is dependent on the number of trials
+% There'll be 2 orientations (angles/values) inside this vector/matrix
+
+p.trial_count = 20; % number of trials
+orientation_tilt_magnitude = 30; % tilt magnitude in degrees
+
+p.trial_events = repmat(orientation_tilt_magnitude, p.trial_count, 1);
+p.trial_events(p.trial_count/2+1:p.trial_count) = p.trial_events(p.trial_count/2+1:p.trial_count)*-1;
+p.trial_events = Shuffle(p.trial_events,2);
+
+%% "Experiment" Loop
+%%% Next training goal: 
+%%% Orientation Discrimination Task
+%%% The grating tilts clockwise or counterclockwise each trial
+%%% Press the left/right arrow key depending on the orientation
+
+%%% Bonus: 
+%%% Provide feedback at fixation dot (green = correct, red = incorrect)
+
 PsychHID('KbQueueCreate', device_number);
 PsychHID('KbQueueStart', device_number);
 escaped = 0;
 
-% grating_coordinate_X = centerX;
-% grating_coordinate_Y = centerY;
+grating_coordinate_X = centerX;
+grating_coordinate_Y = centerY;
+
 fixation_coordinate_X = centerX;
 fixation_coordinate_Y = centerY;
+
 update_coordinate = 1;
 update_size = 50;
 
-%moving stimulus vertically and horizontally
 while 1
-    grating_patch = CenterRectOnPoint([0 0 p.grating_size p.grating_size], fixation_coordinate_X, fixation_coordinate_Y);
-    fixation_patch = CenterRectOnPoint([0 0 stim.fixationPx stim.fixationPx], fixation_coordinate_X, fixation_coordinate_Y); %defining size and location of fixation patch
+    grating_patch = CenterRectOnPoint([0 0 p.grating_size p.grating_size], grating_coordinate_X, grating_coordinate_Y);
+    fixation_patch = CenterRectOnPoint([0 0 p.fixation_size_pixels p.fixation_size_pixels], fixation_coordinate_X, fixation_coordinate_Y); %defining size and location of fixation patch
     
-    
-    % Draw texture  -Luis
+    % Draw texture 
+    Screen('DrawTexture', window, grating_texture_made, [], grating_patch, 45)
     
     % Draw Fixation
     Screen('FillOval', window, white, fixation_patch) 
@@ -172,29 +190,22 @@ while 1
             error('User exited program');
             break;
         elseif any(ismember(whichPress, KbName('UpArrow')))
-            fixation_coordinate_Y = fixation_coordinate_Y - update_size;
+            grating_coordinate_Y = grating_coordinate_Y - update_size;
             
         elseif any(ismember(whichPress, KbName('DownArrow')))
-            fixation_coordinate_Y = fixation_coordinate_Y + update_size;
+            grating_coordinate_Y = grating_coordinate_Y + update_size;
         
         elseif any(ismember(whichPress, KbName('LeftArrow')))
-            fixation_coordinate_X = fixation_coordinate_X - update_size;
+            grating_coordinate_X = grating_coordinate_X - update_size;
         
         elseif any(ismember(whichPress, KbName('RightArrow')))
-            fixation_coordinate_X = fixation_coordinate_X + update_size;
+            grating_coordinate_X = grating_coordinate_X + update_size;
             
         end
     end
    
-    
-
 end
 
 PsychHID('KbQueueStop', device_number);
 PsychHID('KbQueueFlush', device_number);
-
-
-
-
-
 
