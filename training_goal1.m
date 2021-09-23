@@ -1,4 +1,4 @@
-%%% training_goal1.m
+2%%% training_goal1.m
 %%% Psychophysics basics training
 
 %%% Written by Luis D. Ramirez & Lys Marcelin
@@ -171,6 +171,8 @@ fixation_coordinate_Y = centerY;
 update_coordinate = 1;
 update_size = 50;
 
+
+
 while 1
     grating_patch = CenterRectOnPoint([0 0 p.grating_size p.grating_size], grating_coordinate_X, grating_coordinate_Y);
     fixation_patch = CenterRectOnPoint([0 0 p.fixation_size_pixels p.fixation_size_pixels], fixation_coordinate_X, fixation_coordinate_Y); %defining size and location of fixation patch
@@ -182,6 +184,15 @@ while 1
     Screen('FillOval', window, white, fixation_patch) 
     Screen('Flip', window);
     
+    for nTrial = 1:p.trial_count
+        if p.trialEvents(nTrial,1) > 0 % if the orientation change is CW
+            whichAnswer = 2;
+        elseif p.trialEvents(nTrial,1) < 0 % if the orientation change is CCW
+            whichAnswer = 1;
+        end
+    end
+
+    
     [pressed, firstPress] = PsychHID('KbQueueCheck', device_number);
     if pressed == 1
         whichPress = find(firstPress);
@@ -189,18 +200,27 @@ while 1
             Screen('CloseAll');
             error('User exited program');
             break;
-        elseif any(ismember(whichPress, KbName('UpArrow')))
-            grating_coordinate_Y = grating_coordinate_Y - update_size;
-            
-        elseif any(ismember(whichPress, KbName('DownArrow')))
-            grating_coordinate_Y = grating_coordinate_Y + update_size;
-        
-        elseif any(ismember(whichPress, KbName('LeftArrow')))
-            grating_coordinate_X = grating_coordinate_X - update_size;
-        
-        elseif any(ismember(whichPress, KbName('RightArrow')))
-            grating_coordinate_X = grating_coordinate_X + update_size;
-            
+%         elseif any(ismember(whichPress, KbName('UpArrow')))
+%             grating_coordinate_Y = grating_coordinate_Y - update_size;
+%             
+%         elseif any(ismember(whichPress, KbName('DownArrow')))
+%             grating_coordinate_Y = grating_coordinate_Y + update_size;
+%         
+%         elseif any(ismember(whichPress, KbName('LeftArrow')))
+%             grating_coordinate_X = grating_coordinate_X - update_size;
+%         
+%         elseif any(ismember(whichPress, KbName('RightArrow')))
+%             grating_coordinate_X = grating_coordinate_X + update_size;
+        elseif (whichPress(1) == keyPressNumbers(1) && whichAnswer == 1) || (whichPress(1) == keyPressNumbers(2) && whichAnswer == 2) % correct response
+            data.response(nTrial) = 1;
+            feedbackColor = green;
+            PsychHID('KbQueueStop', deviceNumber);
+            break;
+        elseif (whichPress(1) == keyPressNumbers(1) && whichAnswer == 2) || (whichPress(1) == keyPressNumbers(2) && whichAnswer == 1) % incorrect response
+            data.response(nTrial) = 0;
+            feedbackColor = red;
+            PsychHID('KbQueueStop', deviceNumber);
+            break;
         end
     end
    
