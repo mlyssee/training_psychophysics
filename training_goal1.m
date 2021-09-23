@@ -184,6 +184,11 @@ while 1
     Screen('FillOval', window, white, fixation_patch) 
     Screen('Flip', window);
     
+    
+    %------------------------%
+    % grating tilts each trial %
+    %------------------------%
+    
     for nTrial = 1:p.trial_count
         if p.trialEvents(nTrial,1) > 0 % if the orientation change is CW
             whichAnswer = 2;
@@ -211,6 +216,10 @@ while 1
 %         
 %         elseif any(ismember(whichPress, KbName('RightArrow')))
 %             grating_coordinate_X = grating_coordinate_X + update_size;
+
+    %------------------------%
+    % Bonus %
+    %------------------------%
         elseif (whichPress(1) == keyPressNumbers(1) && whichAnswer == 1) || (whichPress(1) == keyPressNumbers(2) && whichAnswer == 2) % correct response
             data.response(nTrial) = 1;
             feedbackColor = green;
