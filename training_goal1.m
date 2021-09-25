@@ -142,7 +142,7 @@ grating_texture_made = Screen('MakeTexture', window, grating_texture_filtered); 
 % Create vector/matrix for conditions (e.g., orientation) whose size is dependent on the number of trials
 % There'll be 2 orientations (angles/values) inside this vector/matrix
 
-p.trial_count = 20; % number of trials
+p.trial_count = 10; % number of trials
 orientation_tilt_magnitude = 30; % tilt magnitude in degrees
 
 p.trial_events = repmat(orientation_tilt_magnitude, p.trial_count, 1);
@@ -159,8 +159,7 @@ p.trial_events = Shuffle(p.trial_events,2);
 %%% Provide feedback at fixation dot (green = correct, red = incorrect)
 
 PsychHID('KbQueueCreate', device_number);
-PsychHID('KbQueueStart', device_number);
-escaped = 0;
+
 
 grating_coordinate_X = centerX;
 grating_coordinate_Y = centerY;
@@ -173,68 +172,98 @@ update_size = 50;
 
 
 
-while 1
+
     grating_patch = CenterRectOnPoint([0 0 p.grating_size p.grating_size], grating_coordinate_X, grating_coordinate_Y);
     fixation_patch = CenterRectOnPoint([0 0 p.fixation_size_pixels p.fixation_size_pixels], fixation_coordinate_X, fixation_coordinate_Y); %defining size and location of fixation patch
     
-    % Draw texture 
-    Screen('DrawTexture', window, grating_texture_made, [], grating_patch, 45)
-    
-    % Draw Fixation
-    Screen('FillOval', window, white, fixation_patch) 
-    Screen('Flip', window);
-    
+  
     
     %------------------------%
     % grating tilts each trial %
     %------------------------%
     
     for nTrial = 1:p.trial_count
-        if p.trialEvents(nTrial,1) > 0 % if the orientation change is CW
+        PsychHID('KbQueueStart', device_number);
+        
+    %Fixation Period
+         % Draw Fixation
+        Screen('FillOval', window, white, fixation_patch)
+        Screen('Flip', window);
+        pause(1);
+               
+      %Grating Onset
+        % Draw texture
+        Screen('DrawTexture', window, grating_texture_made, [], grating_patch, 0)
+        
+         % Draw Fixation
+        Screen('FillOval', window, white, fixation_patch)
+        Screen('Flip', window);
+        pause(1);
+        
+      %Orientation change
+        % Draw texture
+        Screen('DrawTexture', window, grating_texture_made, [], grating_patch, p.trial_events(nTrial,1))
+        
+        % Draw Fixation
+        Screen('FillOval', window, white, fixation_patch)
+        Screen('Flip', window);
+        pause(.050);
+       
+      %Return to horizontal
+         % Draw texture
+        Screen('DrawTexture', window, grating_texture_made, [], grating_patch, 0)
+        
+         % Draw Fixation
+        Screen('FillOval', window, white, fixation_patch)
+        Screen('Flip', window);
+        pause(.500);
+         
+        
+        if p.trial_events(nTrial,1) > 0 % if the orientation change is CW
             whichAnswer = 2;
-        elseif p.trialEvents(nTrial,1) < 0 % if the orientation change is CCW
+        elseif p.trial_events(nTrial,1) < 0 % if the orientation change is CCW
             whichAnswer = 1;
         end
-    end
-
-    
-    [pressed, firstPress] = PsychHID('KbQueueCheck', device_number);
-    if pressed == 1
-        whichPress = find(firstPress);
-        if any(ismember(whichPress, KbName('ESCAPE')))
-            Screen('CloseAll');
-            error('User exited program');
-            break;
-%         elseif any(ismember(whichPress, KbName('UpArrow')))
-%             grating_coordinate_Y = grating_coordinate_Y - update_size;
-%             
-%         elseif any(ismember(whichPress, KbName('DownArrow')))
-%             grating_coordinate_Y = grating_coordinate_Y + update_size;
-%         
-%         elseif any(ismember(whichPress, KbName('LeftArrow')))
-%             grating_coordinate_X = grating_coordinate_X - update_size;
-%         
-%         elseif any(ismember(whichPress, KbName('RightArrow')))
-%             grating_coordinate_X = grating_coordinate_X + update_size;
-
-    %------------------------%
-    % Bonus %
-    %------------------------%
-        elseif (whichPress(1) == keyPressNumbers(1) && whichAnswer == 1) || (whichPress(1) == keyPressNumbers(2) && whichAnswer == 2) % correct response
-            data.response(nTrial) = 1;
-            feedbackColor = green;
-            PsychHID('KbQueueStop', deviceNumber);
-            break;
-        elseif (whichPress(1) == keyPressNumbers(1) && whichAnswer == 2) || (whichPress(1) == keyPressNumbers(2) && whichAnswer == 1) % incorrect response
-            data.response(nTrial) = 0;
-            feedbackColor = red;
-            PsychHID('KbQueueStop', deviceNumber);
-            break;
+        
+       
+        while 1
+            [pressed, firstPress] = PsychHID('KbQueueCheck', device_number);
+            % Draw Fixation
+            Screen('FillOval', window, white, fixation_patch)
+            Screen('Flip', window);
+            if pressed == 1
+                whichPress = find(firstPress);
+                if any(ismember(whichPress, KbName('ESCAPE')))
+                    Screen('CloseAll');
+                    error('User exited program');
+                    break;
+                    
+                    
+                elseif (whichPress(1) == keyPressNumbers(1) && whichAnswer == 1) || (whichPress(1) == keyPressNumbers(2) && whichAnswer == 2) % correct response
+                    data.response(nTrial) = 1;
+                    feedbackColor = green; 
+                    break;
+                elseif (whichPress(1) == keyPressNumbers(1) && whichAnswer == 2) || (whichPress(1) == keyPressNumbers(2) && whichAnswer == 1) % incorrect response
+                    data.response(nTrial) = 0;
+                    feedbackColor = red;
+                    break;
+                end
+            end
         end
+        % Draw Fixation
+        Screen('FillOval', window, feedbackColor, fixation_patch);
+        Screen('Flip', window);
+        pause(1);
+        
+        PsychHID('KbQueueStop', device_number);
+        PsychHID('KbQueueFlush', device_number);
     end
-   
-end
+    sca;
+    
+    %Plotting accuracy
+    figure()
+    bar(mean(data.response))
+    
 
-PsychHID('KbQueueStop', device_number);
-PsychHID('KbQueueFlush', device_number);
+
 
